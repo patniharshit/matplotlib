@@ -1,30 +1,47 @@
-'''
-====================
-Customized colorbars
-====================
+"""
+=============================
+Customized Colorbars Tutorial
+=============================
 
-This example shows how to build colorbars without an attached mappable.
-'''
+This tutorial shows how to build colorbars without an attached mappable.
+
+"""
+
+###############################################################################
+# Customized Colorbars
+# ====================
+#
+# `matplotlib.colorbar.ColorbarBase` derives from `ScalarMappable` and puts a
+# colorbar in specified axes, it is the base class with standalone colorbar
+# drawing functionality. It can be used as-is to make a colorbar for a given
+# colormap and does not need a mappable object like an image. In this tutorial
+# we will explore what can be done with standalone colorbar.
+#
+# We will start by making a figure of desired size and adding axis at position
+# [left, bottom, width, height] where all quantities are in fractions of figure
+# width and height.
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-# Make a figure and axes with dimensions as desired.
 fig = plt.figure(figsize=(8, 3))
 ax1 = fig.add_axes([0.05, 0.80, 0.9, 0.15])
 ax2 = fig.add_axes([0.05, 0.475, 0.9, 0.15])
 ax3 = fig.add_axes([0.05, 0.15, 0.9, 0.15])
 
-# Set the colormap and norm to correspond to the data for which
-# the colorbar will be used.
+###############################################################################
+# A basic continuous colorbar
+# ---------------------------
+#
+# Set the colormap and norm to correspond to the data for which the colorbar
+# will be used. Then create the colorbar by calling `ColorbarBase` and
+# specify axis, colormap, norm and orientation as parameters. Here we create
+# a basic continuous colorbar with ticks and labels. There are many more kwargs
+# which can be used to further modify the colorbar.
+
 cmap = mpl.cm.cool
 norm = mpl.colors.Normalize(vmin=5, vmax=10)
 
-# ColorbarBase derives from ScalarMappable and puts a colorbar
-# in a specified axes, so it has everything needed for a
-# standalone colorbar.  There are many more kwargs, but the
-# following gives a basic continuous colorbar with ticks
-# and labels.
 cb1 = mpl.colorbar.ColorbarBase(ax1, cmap=cmap,
                                 norm=norm,
                                 orientation='horizontal')
