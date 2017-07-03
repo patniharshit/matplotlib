@@ -868,6 +868,7 @@ class BivariateColormap(Colormap):
         bivariate_cmap = np.dstack((red_mesh, green_mesh, blue_mesh, alpha_mesh))
         self._lut = np.vstack(bivariate_cmap)
         self._isinit = True
+        self.N = self.N * self.N
         self._set_extremes()
 
     def _resample(self, lutsize):
@@ -1413,8 +1414,8 @@ class BivariateNorm:
         if clip is None:
             clip = [self.norm1.clip, self.norm2.clip]
 
-        return [self.norm1(values[0], clip=clip[0]),
-                self.norm2(values[1], clip=clip[1])]
+        return np.array([self.norm1(values[0], clip=clip[0]),
+                self.norm2(values[1], clip=clip[1])])
 
     def inverse(self, values):
         """
