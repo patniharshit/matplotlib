@@ -855,6 +855,31 @@ class ListedColormap(Colormap):
         return ListedColormap(colors_r, name=name, N=self.N)
 
 
+class BivariateColormap(Colormap):
+    def __init__(self, name, N=256):
+        Colormap.__init__(self, name, N)
+
+    def _init(self):
+        red = np.linspace(0, 1, self.N)
+        green = np.linspace(0, 1, self.N)
+        red_mesh, green_mesh = np.meshgrid(red, green)
+        blue_mesh = np.zeros_like(red_mesh)
+        alpha_mesh = np.ones_like(red_mesh)
+        bivariate_cmap = np.dstack((red_mesh, green_mesh, blue_mesh, alpha_mesh))
+        self._lut = np.vstack(bivariate_cmap)
+        self._isinit = True
+        self._set_extremes()
+
+    def _resample(self, lutsize):
+        """
+        Return a new color map with *lutsize x lutsize* entries.
+        """
+        return BivariateColormap(self.name, lutsize)
+
+    def reversed(self, name=None):
+        raise NotImplementedError()
+
+
 class Normalize(object):
     """
     A class which, when called, can normalize data into
