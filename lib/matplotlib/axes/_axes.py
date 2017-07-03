@@ -5087,6 +5087,12 @@ or tuple of floats
         if aspect is None:
             aspect = rcParams['image.aspect']
         self.set_aspect(aspect)
+
+        if X.ndim == 3 and isinstance(norm, mcolors.BivariateNorm):
+            X = norm(X)
+            X = X[0] + cmap.N * X[1]
+            norm = mcolors.NoNorm
+
         im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
                               filternorm=filternorm, filterrad=filterrad,
                               resample=resample, **kwargs)
