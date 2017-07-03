@@ -5081,8 +5081,10 @@ or tuple of floats
         if not self._hold:
             self.cla()
 
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            msg = "'norm' must be an instance of 'mcolors.Normalize'"
+        isNorm = isinstance(norm, (mcolors.Normalize, mcolors.BivariateNorm))
+        if norm is not None and not isNorm:
+            msg = "'norm' must be an instance of 'mcolors.Normalize' " \
+                  "or 'mcolors.BivariateNorm'"
             raise ValueError(msg)
         if aspect is None:
             aspect = rcParams['image.aspect']
@@ -5090,8 +5092,12 @@ or tuple of floats
 
         if X.ndim == 3 and isinstance(norm, mcolors.BivariateNorm):
             X = norm(X)
-            X = X[0] + cmap.N * X[1]
-            norm = mcolors.NoNorm
+            X[0] = X[0] * 255
+            X[1] = X[1] * 255
+            X = X.astype(int)
+            X = X[0] + 256 * X[1]
+            X = np.array(X)
+            norm = mcolors.NoNorm()
 
         im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
                               filternorm=filternorm, filterrad=filterrad,
@@ -5102,8 +5108,8 @@ or tuple of floats
         if im.get_clip_path() is None:
             # image does not already have clipping set, clip to axes patch
             im.set_clip_path(self.patch)
-        #if norm is None and shape is None:
-        #    im.set_clim(vmin, vmax)
+        if norm is None and shape is None:
+            im.set_clim(vmin, vmax)
         if vmin is not None or vmax is not None:
             im.set_clim(vmin, vmax)
         else:
