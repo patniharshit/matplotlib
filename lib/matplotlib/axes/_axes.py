@@ -5091,6 +5091,7 @@ or tuple of floats
             aspect = rcParams['image.aspect']
         self.set_aspect(aspect)
 
+        X = np.asarray(X)
         if (X.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
                 isinstance(cmap, mcolors.BivariateColormap)):
             if cmap is None:
@@ -5102,7 +5103,6 @@ or tuple of floats
             X[1] = X[1] * (cmap.N-1)
             X = X.astype(int)
             X = X[0] + cmap.N * X[1]
-            X = np.array(X)
             norm = mcolors.NoNorm()
 
         im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
@@ -5131,7 +5131,6 @@ or tuple of floats
 
     @staticmethod
     def _pcolorargs(funcname, *args, **kw):
-        # This takes one kwarg, allmatch.
         # If allmatch is True, then the incoming X, Y, C must
         # have matching dimensions, taking into account that
         # X and Y can be 1-D rather than 2-D.  This perfect
@@ -5732,7 +5731,7 @@ or tuple of floats
                   "or 'mcolors.BivariateNorm'"
             raise ValueError(msg)
 
-        C = args[-1]
+        C = np.asarray(args[-1])
 
         if (C.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
                 isinstance(cmap, mcolors.BivariateColormap)):
