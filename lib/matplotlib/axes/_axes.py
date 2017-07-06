@@ -5091,18 +5091,18 @@ or tuple of floats
             aspect = rcParams['image.aspect']
         self.set_aspect(aspect)
 
-        X = np.asarray(X)
-        if (X.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
+        temp = np.asarray(X)
+        if (temp.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
                 isinstance(cmap, mcolors.BivariateColormap)):
             if cmap is None:
                 cmap = mcolors.BivariateColormap()
             if norm is None:
                 norm = mcolors.BivariateNorm()
-            X = norm(X)
-            X[0] = X[0] * (cmap.N-1)
-            X[1] = X[1] * (cmap.N-1)
-            X = X.astype(int)
-            X = X[0] + cmap.N * X[1]
+            temp = norm(temp)
+            temp[0] = temp[0] * (cmap.N-1)
+            temp[1] = temp[1] * (cmap.N-1)
+            temp = temp.astype(int)
+            X = temp[0] + cmap.N * temp[1]
             norm = mcolors.NoNorm()
 
         im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
@@ -5114,8 +5114,8 @@ or tuple of floats
         if im.get_clip_path() is None:
             # image does not already have clipping set, clip to axes patch
             im.set_clip_path(self.patch)
-        if norm is None and shape is None:
-            im.set_clim(vmin, vmax)
+        #if norm is None and shape is None:
+        #    im.set_clim(vmin, vmax)
         if vmin is not None or vmax is not None:
             im.set_clim(vmin, vmax)
         else:
