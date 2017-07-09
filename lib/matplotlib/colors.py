@@ -1372,6 +1372,7 @@ class NoNorm(Normalize):
     def inverse(self, value):
         return value
 
+
 class BivariateNorm:
     """
     Normalize a list of two values corresponding to two 1D normalizers
