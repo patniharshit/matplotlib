@@ -5105,8 +5105,9 @@ or tuple of floats
         self.set_aspect(aspect)
 
         temp = np.asarray(X)
-        if (temp.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
-                isinstance(cmap, mcolors.BivariateColormap)):
+        isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                    isinstance(cmap, mcolors.BivariateColormap))
+        if (temp.ndim == 3 and isBivari):
             if cmap is None:
                 cmap = mcolors.BivariateColormap()
             if norm is None:
@@ -5162,8 +5163,9 @@ or tuple of floats
         if len(args) == 1:
             C = np.asanyarray(args[0])
 
-            if (C.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
-                    isinstance(cmap, mcolors.BivariateColormap)):
+            isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                        isinstance(cmap, mcolors.BivariateColormap))
+            if (C.ndim == 3 and isBivari):
                 if cmap is None:
                     cmap = mcolors.BivariateColormap()
                 if norm is None:
@@ -5186,8 +5188,9 @@ or tuple of floats
 
         if len(args) == 3:
             X, Y, C = [np.asanyarray(a) for a in args]
-            if (C.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
-                    isinstance(cmap, mcolors.BivariateColormap)):
+            isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                        isinstance(cmap, mcolors.BivariateColormap))
+            if (C.ndim == 3 and isBivari):
                 if cmap is None:
                     cmap = mcolors.BivariateColormap()
                 if norm is None:
@@ -5746,8 +5749,9 @@ or tuple of floats
 
         C = np.asarray(args[-1])
 
-        if (C.ndim == 3 and isinstance(norm, mcolors.BivariateNorm) or
-                isinstance(cmap, mcolors.BivariateColormap)):
+        isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                    isinstance(cmap, mcolors.BivariateColormap))
+        if (C.ndim == 3 and isBivari):
             if cmap is None:
                 cmap = mcolors.BivariateColormap()
             if norm is None:
