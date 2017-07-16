@@ -637,6 +637,8 @@ class ColorbarBase(cm.ScalarMappable):
         based on the input boundaries and values.  Input boundaries
         can be *self.boundaries* or the argument *b*.
         '''
+        temp = self.norm
+        self.norm = colors.Normalize()
         if b is None:
             b = self.boundaries
         if b is not None:
@@ -700,7 +702,12 @@ class ColorbarBase(cm.ScalarMappable):
                 self.norm.vmax,
                 expander=0.1)
 
-            b = self.norm.inverse(self._uniform_y(self.cmap.N + 1))
+            # b = self.norm.inverse(self._uniform_y(self.cmap.N + 1))
+
+            normi = colors.Normalize(vmin=225.,vmax=309)
+            b = normi.inverse(self._uniform_y(self.cmap.N + 1))
+            self.norm = temp
+            print('fjgh')
 
             if isinstance(self.norm, colors.LogNorm):
                 # If using a lognorm, ensure extensions don't go negative
