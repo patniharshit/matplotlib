@@ -1347,6 +1347,111 @@ class NoNorm(Normalize):
         return value
 
 
+class BivariateColormap(Colormap):
+    def __init__(self, name='bivariate', N=256):
+        Colormap.__init__(self, name, N)
+
+    def _init(self):
+        red = np.linspace(0, 1, self.N)
+        green = np.linspace(0, 1, self.N)
+        red_mesh, green_mesh = np.meshgrid(red, green)
+        blue_mesh = np.zeros_like(red_mesh)
+        alpha_mesh = np.ones_like(red_mesh)
+        bivariate_cmap = np.dstack((red_mesh, green_mesh, blue_mesh, alpha_mesh))
+        self._lut = np.vstack(bivariate_cmap)
+        self._isinit = True
+        self.N = self.N * self.N
+        self._set_extremes()
+
+    def _resample(self, lutsize):
+        """
+        Return a new color map with *lutsize x lutsize* entries.
+        """
+        return BivariateColormap(self.name, lutsize)
+
+    def reversed(self, name=None):
+        raise NotImplementedError()
+
+class BivariateNorm:
+    """
+    Normalize a list of two values corresponding to two 1D normalizers
+    """
+    def __init__(self, norm1=None, norm2=None):
+        """
+        Parameters
+        ----------
+        norm1 :
+            An instance of 1D normalizers
+        norm2 :
+            An instance of 1D normalizers
+        """
+        if norm1 is None:
+            self.norm1 = Normalize()
+        else:
+            self.norm1 = norm1
+        if norm2 is None:
+            self.norm2 = Normalize()
+        else:
+            self.norm2 = norm2
+
+    def __call__(self, values, clip=None):
+        """
+        Parameters
+        ----------
+        values : array-like
+            A list of two values to be normalized
+        clip : list of bools, None, optional
+            A list of two bools corresponding to value in values.
+            If clip is None then clip is set according to corresponding
+            normalizers.
+
+        Returns
+        -------
+        A list of two normalized values according to corresponding 1D
+        normalizers.
+        """
+        if clip is None:
+            clip = [self.norm1.clip, self.norm2.clip]
+
+        temp = np.asarray([self.norm1(values[0], clip=clip[0]),
+                self.norm2(values[1], clip=clip[1])])
+
+        temp[0] = temp[0] * (256)
+        temp[1] = temp[1] * (256)
+        temp = temp.astype(int)
+        return temp[0] + temp[1] * 256
+
+    def inverse(self, values):
+        """
+        Parameters
+        ----------
+        values : array-like
+            A list of two values to be inverted
+
+        Returns
+        -------
+        A list of two unnormalized values
+        """
+        return np.asarray([self.norm1.inverse(values[0]),
+                self.norm2.inverse(values[1])])
+
+    def autoscale(self, A):
+        """
+        Set *vmin*, *vmax* to min, max of *A*.
+        """
+        self.norm1.autoscale(A[0])
+        self.norm2.autoscale(A[1])
+
+    def autoscale_None(self, A):
+        'autoscale only None-valued vmin or vmax'
+        self.norm1.autoscale_None(A[0])
+        self.norm2.autoscale_None(A[1])
+
+    def scaled(self):
+        'return true if vmin and vmax set for both normalizers'
+        return self.norm1.scaled() and self.norm2.scaled()
+
+
 def rgb_to_hsv(arr):
     """
     convert float rgb values (in the range [0, 1]), in a numpy array to hsv

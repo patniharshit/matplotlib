@@ -5120,14 +5120,16 @@ or tuple of floats
 
         """
 
+        if X.ndim == 3 and isinstance(norm, mcolors.BivariateNorm):
+            X = norm(X)
+            X = cmap(X, alpha=self.get_alpha(), bytes=True)
+
         if not self._hold:
             self.cla()
 
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            msg = "'norm' must be an instance of 'mcolors.Normalize'"
-            raise ValueError(msg)
         if aspect is None:
             aspect = rcParams['image.aspect']
+
         self.set_aspect(aspect)
         im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
                               filternorm=filternorm, filterrad=filterrad,
