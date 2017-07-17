@@ -900,454 +900,6 @@ class ColorbarBase(cm.ScalarMappable):
         fig.delaxes(self.ax)
 
 
-class Colorbar(Colorsquare):
-    """
-    This class connects a :class:`ColorbarBase` to a
-    :class:`~matplotlib.cm.ScalarMappable` such as a
-    :class:`~matplotlib.image.AxesImage` generated via
-    :meth:`~matplotlib.axes.Axes.imshow`.
-
-    It is not intended to be instantiated directly; instead,
-    use :meth:`~matplotlib.figure.Figure.colorbar` or
-    :func:`~matplotlib.pyplot.colorbar` to make your colorbar.
-
-    """
-    def __init__(self, ax, mappable, **kw):
-        # Ensure the given mappable's norm has appropriate vmin and vmax set
-        # even if mappable.draw has not yet been called.
-        mappable.autoscale_None()
-
-        self.mappable = mappable
-        kw['cmap'] = cmap = mappable.cmap
-        kw['norm'] = norm = mappable.norm
-
-        if isinstance(mappable, contour.ContourSet):
-            CS = mappable
-            kw['alpha'] = mappable.get_alpha()
-            kw['boundaries'] = CS._levels
-            kw['values'] = CS.cvalues
-            kw['extend'] = CS.extend
-            #kw['ticks'] = CS._levels
-            kw.setdefault('ticks', ticker.FixedLocator(CS.levels, nbins=10))
-            kw['filled'] = CS.filled
-            ColorbarBase.__init__(self, ax, **kw)
-            if not CS.filled:
-                self.add_lines(CS)
-        else:
-            if getattr(cmap, 'colorbar_extend', False) is not False:
-                kw.setdefault('extend', cmap.colorbar_extend)
-
-            if isinstance(mappable, martist.Artist):
-                kw['alpha'] = mappable.get_alpha()
-
-            Colorsquare.__init__(self, ax, **kw)
-
-    def on_mappable_changed(self, mappable):
-        """
-        Updates this colorbar to match the mappable's properties.
-
-        Typically this is automatically registered as an event handler
-        by :func:`colorbar_factory` and should not be called manually.
-
-        """
-        self.set_cmap(mappable.get_cmap())
-        self.set_clim(mappable.get_clim())
-        self.update_normal(mappable)
-
-    def add_lines(self, CS, erase=True):
-        '''
-        Add the lines from a non-filled
-        :class:`~matplotlib.contour.ContourSet` to the colorbar.
-
-        Set *erase* to False if these lines should be added to
-        any pre-existing lines.
-        '''
-        if not isinstance(CS, contour.ContourSet) or CS.filled:
-            raise ValueError('add_lines is only for a ContourSet of lines')
-        tcolors = [c[0] for c in CS.tcolors]
-        tlinewidths = [t[0] for t in CS.tlinewidths]
-        # The following was an attempt to get the colorbar lines
-        # to follow subsequent changes in the contour lines,
-        # but more work is needed: specifically, a careful
-        # look at event sequences, and at how
-        # to make one object track another automatically.
-        #tcolors = [col.get_colors()[0] for col in CS.collections]
-        #tlinewidths = [col.get_linewidth()[0] for lw in CS.collections]
-        #print 'tlinewidths:', tlinewidths
-        ColorbarBase.add_lines(self, CS.levels, tcolors, tlinewidths,
-                               erase=erase)
-
-    def update_normal(self, mappable):
-        '''
-        update solid, lines, etc. Unlike update_bruteforce, it does
-        not clear the axes.  This is meant to be called when the image
-        or contour plot to which this colorbar belongs is changed.
-        '''
-        self.draw_all()
-        if isinstance(self.mappable, contour.ContourSet):
-            CS = self.mappable
-            if not CS.filled:
-                self.add_lines(CS)
-        self.stale = True
-
-    def update_bruteforce(self, mappable):
-        '''
-        Destroy and rebuild the colorbar.  This is
-        intended to become obsolete, and will probably be
-        deprecated and then removed.  It is not called when
-        the pyplot.colorbar function or the Figure.colorbar
-        method are used to create the colorbar.
-
-        '''
-        # We are using an ugly brute-force method: clearing and
-        # redrawing the whole thing.  The problem is that if any
-        # properties have been changed by methods other than the
-        # colorbar methods, those changes will be lost.
-        self.ax.cla()
-        # clearing the axes will delete outline, patch, solids, and lines:
-        self.outline = None
-        self.patch = None
-        self.solids = None
-        self.lines = list()
-        self.dividers = None
-        self.set_alpha(mappable.get_alpha())
-        self.cmap = mappable.cmap
-        self.norm = mappable.norm
-        self.config_axis()
-        self.draw_all()
-        if isinstance(self.mappable, contour.ContourSet):
-            CS = self.mappable
-            if not CS.filled:
-                self.add_lines(CS)
-            #if self.lines is not None:
-            #    tcolors = [c[0] for c in CS.tcolors]
-            #    self.lines.set_color(tcolors)
-        #Fixme? Recalculate boundaries, ticks if vmin, vmax have changed.
-        #Fixme: Some refactoring may be needed; we should not
-        # be recalculating everything if there was a simple alpha
-        # change.
-
-    def remove(self):
-        """
-        Remove this colorbar from the figure.  If the colorbar was created with
-        ``use_gridspec=True`` then restore the gridspec to its previous value.
-        """
-
-        ColorbarBase.remove(self)
-        self.mappable.callbacksSM.disconnect(self.mappable.colorbar_cid)
-        self.mappable.colorbar = None
-        self.mappable.colorbar_cid = None
-
-        try:
-            ax = self.mappable.axes
-        except AttributeError:
-            return
-
-        try:
-            gs = ax.get_subplotspec().get_gridspec()
-            subplotspec = gs.get_topmost_subplotspec()
-        except AttributeError:
-            # use_gridspec was False
-            pos = ax.get_position(original=True)
-            ax.set_position(pos)
-        else:
-            # use_gridspec was True
-            ax.set_subplotspec(subplotspec)
-
-
-@docstring.Substitution(make_axes_kw_doc)
-def make_axes(parents, location=None, orientation=None, fraction=0.15,
-              shrink=1.0, aspect=20, **kw):
-    '''
-    Resize and reposition parent axes, and return a child
-    axes suitable for a colorbar.
-
-    Keyword arguments may include the following (with defaults):
-
-        location : [None|'left'|'right'|'top'|'bottom']
-            The position, relative to **parents**, where the colorbar axes
-            should be created. If None, the value will either come from the
-            given ``orientation``, else it will default to 'right'.
-
-        orientation :  [None|'vertical'|'horizontal']
-            The orientation of the colorbar. Typically, this keyword shouldn't
-            be used, as it can be derived from the ``location`` keyword.
-
-    %s
-
-    Returns (cax, kw), the child axes and the reduced kw dictionary to be
-    passed when creating the colorbar instance.
-    '''
-    locations = ["left", "right", "top", "bottom"]
-    if orientation is not None and location is not None:
-        msg = ('position and orientation are mutually exclusive. '
-               'Consider setting the position to any of '
-               '{0}'.format(', '.join(locations)))
-        raise TypeError(msg)
-
-    # provide a default location
-    if location is None and orientation is None:
-        location = 'right'
-
-    # allow the user to not specify the location by specifying the
-    # orientation instead
-    if location is None:
-        location = 'right' if orientation == 'vertical' else 'bottom'
-
-    if location not in locations:
-        raise ValueError('Invalid colorbar location. Must be one '
-                         'of %s' % ', '.join(locations))
-
-    default_location_settings = {'left':   {'anchor': (1.0, 0.5),
-                                            'panchor': (0.0, 0.5),
-                                            'pad': 0.10,
-                                            'orientation': 'vertical'},
-                                 'right':  {'anchor': (0.0, 0.5),
-                                            'panchor': (1.0, 0.5),
-                                            'pad': 0.05,
-                                            'orientation': 'vertical'},
-                                 'top':    {'anchor': (0.5, 0.0),
-                                            'panchor': (0.5, 1.0),
-                                            'pad': 0.05,
-                                            'orientation': 'horizontal'},
-                                 'bottom': {'anchor': (0.5, 1.0),
-                                            'panchor': (0.5, 0.0),
-                                            'pad': 0.15,  # backwards compat
-                                            'orientation': 'horizontal'},
-                                 }
-
-    loc_settings = default_location_settings[location]
-
-    # put appropriate values into the kw dict for passing back to
-    # the Colorbar class
-    kw['orientation'] = loc_settings['orientation']
-    kw['ticklocation'] = location
-
-    anchor = kw.pop('anchor', loc_settings['anchor'])
-    parent_anchor = kw.pop('panchor', loc_settings['panchor'])
-    pad = kw.pop('pad', loc_settings['pad'])
-
-    # turn parents into a list if it is not already. We do this w/ np
-    # because `plt.subplots` can return an ndarray and is natural to
-    # pass to `colorbar`.
-    parents = np.atleast_1d(parents).ravel()
-
-    fig = parents[0].get_figure()
-    if not all(fig is ax.get_figure() for ax in parents):
-        raise ValueError('Unable to create a colorbar axes as not all '
-                         'parents share the same figure.')
-
-    # take a bounding box around all of the given axes
-    parents_bbox = mtransforms.Bbox.union(
-        [ax.get_position(original=True).frozen() for ax in parents])
-
-    pb = parents_bbox
-    if location in ('left', 'right'):
-        if location == 'left':
-            pbcb, _, pb1 = pb.splitx(fraction, fraction + pad)
-        else:
-            pb1, _, pbcb = pb.splitx(1 - fraction - pad, 1 - fraction)
-        pbcb = pbcb.shrunk(1.0, shrink).anchored(anchor, pbcb)
-    else:
-        if location == 'bottom':
-            pbcb, _, pb1 = pb.splity(fraction, fraction + pad)
-        else:
-            pb1, _, pbcb = pb.splity(1 - fraction - pad, 1 - fraction)
-        pbcb = pbcb.shrunk(shrink, 1.0).anchored(anchor, pbcb)
-
-        # define the aspect ratio in terms of y's per x rather than x's per y
-        aspect = 1.0 / aspect
-
-    # define a transform which takes us from old axes coordinates to
-    # new axes coordinates
-    shrinking_trans = mtransforms.BboxTransform(parents_bbox, pb1)
-
-    # transform each of the axes in parents using the new transform
-    for ax in parents:
-        new_posn = shrinking_trans.transform(ax.get_position())
-        new_posn = mtransforms.Bbox(new_posn)
-        ax.set_position(new_posn)
-        if parent_anchor is not False:
-            ax.set_anchor(parent_anchor)
-
-    cax = fig.add_axes(pbcb)
-    cax.set_aspect(aspect, anchor=anchor, adjustable='box')
-    return cax, kw
-
-
-@docstring.Substitution(make_axes_kw_doc)
-def make_axes_gridspec(parent, **kw):
-    '''
-    Resize and reposition a parent axes, and return a child axes
-    suitable for a colorbar. This function is similar to
-    make_axes. Prmary differences are
-
-     * *make_axes_gridspec* only handles the *orientation* keyword
-       and cannot handle the "location" keyword.
-
-     * *make_axes_gridspec* should only be used with a subplot parent.
-
-     * *make_axes* creates an instance of Axes. *make_axes_gridspec*
-        creates an instance of Subplot.
-
-     * *make_axes* updates the position of the
-        parent. *make_axes_gridspec* replaces the grid_spec attribute
-        of the parent with a new one.
-
-    While this function is meant to be compatible with *make_axes*,
-    there could be some minor differences.
-
-    Keyword arguments may include the following (with defaults):
-
-        *orientation*
-            'vertical' or 'horizontal'
-
-    %s
-
-    All but the first of these are stripped from the input kw set.
-
-    Returns (cax, kw), the child axes and the reduced kw dictionary to be
-    passed when creating the colorbar instance.
-    '''
-
-    orientation = kw.setdefault('orientation', 'vertical')
-    kw['ticklocation'] = 'auto'
-
-    fraction = kw.pop('fraction', 0.15)
-    shrink = kw.pop('shrink', 1.0)
-    aspect = kw.pop('aspect', 20)
-
-    x1 = 1.0 - fraction
-
-    # for shrinking
-    pad_s = (1. - shrink) * 0.5
-    wh_ratios = [pad_s, shrink, pad_s]
-
-    gs_from_subplotspec = gridspec.GridSpecFromSubplotSpec
-    if orientation == 'vertical':
-        pad = kw.pop('pad', 0.05)
-        wh_space = 2 * pad / (1 - pad)
-
-        gs = gs_from_subplotspec(1, 2,
-                                 subplot_spec=parent.get_subplotspec(),
-                                 wspace=wh_space,
-                                 width_ratios=[x1 - pad, fraction]
-                                 )
-
-        gs2 = gs_from_subplotspec(3, 1,
-                                  subplot_spec=gs[1],
-                                  hspace=0.,
-                                  height_ratios=wh_ratios,
-                                  )
-
-        anchor = (0.0, 0.5)
-        panchor = (1.0, 0.5)
-    else:
-        pad = kw.pop('pad', 0.15)
-        wh_space = 2 * pad / (1 - pad)
-
-        gs = gs_from_subplotspec(2, 1,
-                                 subplot_spec=parent.get_subplotspec(),
-                                 hspace=wh_space,
-                                 height_ratios=[x1 - pad, fraction]
-                                 )
-
-        gs2 = gs_from_subplotspec(1, 3,
-                                  subplot_spec=gs[1],
-                                  wspace=0.,
-                                  width_ratios=wh_ratios,
-                                  )
-
-        aspect = 1.0 / aspect
-        anchor = (0.5, 1.0)
-        panchor = (0.5, 0.0)
-
-    parent.set_subplotspec(gs[0])
-    parent.update_params()
-    parent.set_position(parent.figbox)
-    parent.set_anchor(panchor)
-
-    fig = parent.get_figure()
-    cax = fig.add_subplot(gs2[1])
-    cax.set_aspect(aspect, anchor=anchor, adjustable='box')
-    return cax, kw
-
-
-class ColorbarPatch(Colorbar):
-    """
-    A Colorbar which is created using :class:`~matplotlib.patches.Patch`
-    rather than the default :func:`~matplotlib.axes.pcolor`.
-
-    It uses a list of Patch instances instead of a
-    :class:`~matplotlib.collections.PatchCollection` because the
-    latter does not allow the hatch pattern to vary among the
-    members of the collection.
-    """
-    def __init__(self, ax, mappable, **kw):
-        # we do not want to override the behaviour of solids
-        # so add a new attribute which will be a list of the
-        # colored patches in the colorbar
-        self.solids_patches = []
-        Colorbar.__init__(self, ax, mappable, **kw)
-
-    def _add_solids(self, X, Y, C):
-        """
-        Draw the colors using :class:`~matplotlib.patches.Patch`;
-        optionally add separators.
-        """
-        # Save, set, and restore hold state to keep pcolor from
-        # clearing the axes. Ordinarily this will not be needed,
-        # since the axes object should already have hold set.
-        _hold = self.ax._hold
-        self.ax._hold = True
-
-        kw = {'alpha': self.alpha, }
-
-        n_segments = len(C)
-
-        # ensure there are sufficent hatches
-        hatches = self.mappable.hatches * n_segments
-
-        patches = []
-        for i in xrange(len(X) - 1):
-            val = C[i][0]
-            hatch = hatches[i]
-
-            xy = np.array([[X[i][0], Y[i][0]],
-                           [X[i][1], Y[i][0]],
-                           [X[i + 1][1], Y[i + 1][0]],
-                           [X[i + 1][0], Y[i + 1][1]]])
-
-            if self.orientation == 'horizontal':
-                # if horizontal swap the xs and ys
-                xy = xy[..., ::-1]
-
-            patch = mpatches.PathPatch(mpath.Path(xy),
-                                       facecolor=self.cmap(self.norm(val)),
-                                       hatch=hatch, linewidth=0,
-                                       antialiased=False, **kw)
-            self.ax.add_patch(patch)
-            patches.append(patch)
-
-        if self.solids_patches:
-            for solid in self.solids_patches:
-                solid.remove()
-
-        self.solids_patches = patches
-
-        if self.dividers is not None:
-            self.dividers.remove()
-            self.dividers = None
-
-        if self.drawedges:
-            self.dividers = collections.LineCollection(self._edges(X, Y),
-                    colors=(mpl.rcParams['axes.edgecolor'],),
-                    linewidths=(0.5 * mpl.rcParams['axes.linewidth'],))
-            self.ax.add_collection(self.dividers)
-
-        self.ax._hold = _hold
-
-
 class Colorsquare(ColorbarBase):
     def __init__(self, ax, cmap=None,
                  norm=None,
@@ -1752,10 +1304,10 @@ class Colorsquare(ColorbarBase):
                 self.norm.vmin = 0
                 self.norm.vmax = 1
 
-            self.norm.vmin, self.norm.vmax = mtransforms.nonsingular(
+            """self.norm.vmin, self.norm.vmax = mtransforms.nonsingular(
                 self.norm.vmin,
                 self.norm.vmax,
-                expander=0.1)
+                expander=0.1)"""
 
             b = self.norm.inverse(self._uniform_y(self.cmap.N + 1))
 
@@ -1872,6 +1424,7 @@ class Colorsquare(ColorbarBase):
         else:
             # Do calculations using normalized coordinates so
             # as to make the interpolation more accurate.
+            self.norm  = self.norm.norm1
             b = self.norm(self._boundaries, clip=False).filled()
             xn = self.norm(x, clip=False).filled()
 
@@ -1892,6 +1445,454 @@ class Colorsquare(ColorbarBase):
         return z
 
 
+class Colorbar(Colorsquare):
+    """
+    This class connects a :class:`ColorbarBase` to a
+    :class:`~matplotlib.cm.ScalarMappable` such as a
+    :class:`~matplotlib.image.AxesImage` generated via
+    :meth:`~matplotlib.axes.Axes.imshow`.
+
+    It is not intended to be instantiated directly; instead,
+    use :meth:`~matplotlib.figure.Figure.colorbar` or
+    :func:`~matplotlib.pyplot.colorbar` to make your colorbar.
+
+    """
+    def __init__(self, ax, mappable, **kw):
+        # Ensure the given mappable's norm has appropriate vmin and vmax set
+        # even if mappable.draw has not yet been called.
+        mappable.autoscale_None()
+
+        self.mappable = mappable
+        kw['cmap'] = cmap = mappable.cmap
+        kw['norm'] = norm = mappable.norm
+
+        if isinstance(mappable, contour.ContourSet):
+            CS = mappable
+            kw['alpha'] = mappable.get_alpha()
+            kw['boundaries'] = CS._levels
+            kw['values'] = CS.cvalues
+            kw['extend'] = CS.extend
+            #kw['ticks'] = CS._levels
+            kw.setdefault('ticks', ticker.FixedLocator(CS.levels, nbins=10))
+            kw['filled'] = CS.filled
+            ColorbarBase.__init__(self, ax, **kw)
+            if not CS.filled:
+                self.add_lines(CS)
+        else:
+            if getattr(cmap, 'colorbar_extend', False) is not False:
+                kw.setdefault('extend', cmap.colorbar_extend)
+
+            if isinstance(mappable, martist.Artist):
+                kw['alpha'] = mappable.get_alpha()
+
+            Colorsquare.__init__(self, ax, **kw)
+
+    def on_mappable_changed(self, mappable):
+        """
+        Updates this colorbar to match the mappable's properties.
+
+        Typically this is automatically registered as an event handler
+        by :func:`colorbar_factory` and should not be called manually.
+
+        """
+        self.set_cmap(mappable.get_cmap())
+        self.set_clim(mappable.get_clim())
+        self.update_normal(mappable)
+
+    def add_lines(self, CS, erase=True):
+        '''
+        Add the lines from a non-filled
+        :class:`~matplotlib.contour.ContourSet` to the colorbar.
+
+        Set *erase* to False if these lines should be added to
+        any pre-existing lines.
+        '''
+        if not isinstance(CS, contour.ContourSet) or CS.filled:
+            raise ValueError('add_lines is only for a ContourSet of lines')
+        tcolors = [c[0] for c in CS.tcolors]
+        tlinewidths = [t[0] for t in CS.tlinewidths]
+        # The following was an attempt to get the colorbar lines
+        # to follow subsequent changes in the contour lines,
+        # but more work is needed: specifically, a careful
+        # look at event sequences, and at how
+        # to make one object track another automatically.
+        #tcolors = [col.get_colors()[0] for col in CS.collections]
+        #tlinewidths = [col.get_linewidth()[0] for lw in CS.collections]
+        #print 'tlinewidths:', tlinewidths
+        ColorbarBase.add_lines(self, CS.levels, tcolors, tlinewidths,
+                               erase=erase)
+
+    def update_normal(self, mappable):
+        '''
+        update solid, lines, etc. Unlike update_bruteforce, it does
+        not clear the axes.  This is meant to be called when the image
+        or contour plot to which this colorbar belongs is changed.
+        '''
+        self.draw_all()
+        if isinstance(self.mappable, contour.ContourSet):
+            CS = self.mappable
+            if not CS.filled:
+                self.add_lines(CS)
+        self.stale = True
+
+    def update_bruteforce(self, mappable):
+        '''
+        Destroy and rebuild the colorbar.  This is
+        intended to become obsolete, and will probably be
+        deprecated and then removed.  It is not called when
+        the pyplot.colorbar function or the Figure.colorbar
+        method are used to create the colorbar.
+
+        '''
+        # We are using an ugly brute-force method: clearing and
+        # redrawing the whole thing.  The problem is that if any
+        # properties have been changed by methods other than the
+        # colorbar methods, those changes will be lost.
+        self.ax.cla()
+        # clearing the axes will delete outline, patch, solids, and lines:
+        self.outline = None
+        self.patch = None
+        self.solids = None
+        self.lines = list()
+        self.dividers = None
+        self.set_alpha(mappable.get_alpha())
+        self.cmap = mappable.cmap
+        self.norm = mappable.norm
+        self.config_axis()
+        self.draw_all()
+        if isinstance(self.mappable, contour.ContourSet):
+            CS = self.mappable
+            if not CS.filled:
+                self.add_lines(CS)
+            #if self.lines is not None:
+            #    tcolors = [c[0] for c in CS.tcolors]
+            #    self.lines.set_color(tcolors)
+        #Fixme? Recalculate boundaries, ticks if vmin, vmax have changed.
+        #Fixme: Some refactoring may be needed; we should not
+        # be recalculating everything if there was a simple alpha
+        # change.
+
+    def remove(self):
+        """
+        Remove this colorbar from the figure.  If the colorbar was created with
+        ``use_gridspec=True`` then restore the gridspec to its previous value.
+        """
+
+        ColorbarBase.remove(self)
+        self.mappable.callbacksSM.disconnect(self.mappable.colorbar_cid)
+        self.mappable.colorbar = None
+        self.mappable.colorbar_cid = None
+
+        try:
+            ax = self.mappable.axes
+        except AttributeError:
+            return
+
+        try:
+            gs = ax.get_subplotspec().get_gridspec()
+            subplotspec = gs.get_topmost_subplotspec()
+        except AttributeError:
+            # use_gridspec was False
+            pos = ax.get_position(original=True)
+            ax.set_position(pos)
+        else:
+            # use_gridspec was True
+            ax.set_subplotspec(subplotspec)
+
+
+@docstring.Substitution(make_axes_kw_doc)
+def make_axes(parents, location=None, orientation=None, fraction=0.15,
+              shrink=1.0, aspect=20, **kw):
+    '''
+    Resize and reposition parent axes, and return a child
+    axes suitable for a colorbar.
+
+    Keyword arguments may include the following (with defaults):
+
+        location : [None|'left'|'right'|'top'|'bottom']
+            The position, relative to **parents**, where the colorbar axes
+            should be created. If None, the value will either come from the
+            given ``orientation``, else it will default to 'right'.
+
+        orientation :  [None|'vertical'|'horizontal']
+            The orientation of the colorbar. Typically, this keyword shouldn't
+            be used, as it can be derived from the ``location`` keyword.
+
+    %s
+
+    Returns (cax, kw), the child axes and the reduced kw dictionary to be
+    passed when creating the colorbar instance.
+    '''
+    locations = ["left", "right", "top", "bottom"]
+    if orientation is not None and location is not None:
+        msg = ('position and orientation are mutually exclusive. '
+               'Consider setting the position to any of '
+               '{0}'.format(', '.join(locations)))
+        raise TypeError(msg)
+
+    # provide a default location
+    if location is None and orientation is None:
+        location = 'right'
+
+    # allow the user to not specify the location by specifying the
+    # orientation instead
+    if location is None:
+        location = 'right' if orientation == 'vertical' else 'bottom'
+
+    if location not in locations:
+        raise ValueError('Invalid colorbar location. Must be one '
+                         'of %s' % ', '.join(locations))
+
+    default_location_settings = {'left':   {'anchor': (1.0, 0.5),
+                                            'panchor': (0.0, 0.5),
+                                            'pad': 0.10,
+                                            'orientation': 'vertical'},
+                                 'right':  {'anchor': (0.0, 0.5),
+                                            'panchor': (1.0, 0.5),
+                                            'pad': 0.05,
+                                            'orientation': 'vertical'},
+                                 'top':    {'anchor': (0.5, 0.0),
+                                            'panchor': (0.5, 1.0),
+                                            'pad': 0.05,
+                                            'orientation': 'horizontal'},
+                                 'bottom': {'anchor': (0.5, 1.0),
+                                            'panchor': (0.5, 0.0),
+                                            'pad': 0.15,  # backwards compat
+                                            'orientation': 'horizontal'},
+                                 }
+
+    loc_settings = default_location_settings[location]
+
+    # put appropriate values into the kw dict for passing back to
+    # the Colorbar class
+    kw['orientation'] = loc_settings['orientation']
+    kw['ticklocation'] = location
+
+    anchor = kw.pop('anchor', loc_settings['anchor'])
+    parent_anchor = kw.pop('panchor', loc_settings['panchor'])
+    pad = kw.pop('pad', loc_settings['pad'])
+
+    # turn parents into a list if it is not already. We do this w/ np
+    # because `plt.subplots` can return an ndarray and is natural to
+    # pass to `colorbar`.
+    parents = np.atleast_1d(parents).ravel()
+
+    fig = parents[0].get_figure()
+    if not all(fig is ax.get_figure() for ax in parents):
+        raise ValueError('Unable to create a colorbar axes as not all '
+                         'parents share the same figure.')
+
+    # take a bounding box around all of the given axes
+    parents_bbox = mtransforms.Bbox.union(
+        [ax.get_position(original=True).frozen() for ax in parents])
+
+    pb = parents_bbox
+    if location in ('left', 'right'):
+        if location == 'left':
+            pbcb, _, pb1 = pb.splitx(fraction, fraction + pad)
+        else:
+            pb1, _, pbcb = pb.splitx(1 - fraction - pad, 1 - fraction)
+        pbcb = pbcb.shrunk(1.0, shrink).anchored(anchor, pbcb)
+    else:
+        if location == 'bottom':
+            pbcb, _, pb1 = pb.splity(fraction, fraction + pad)
+        else:
+            pb1, _, pbcb = pb.splity(1 - fraction - pad, 1 - fraction)
+        pbcb = pbcb.shrunk(shrink, 1.0).anchored(anchor, pbcb)
+
+        # define the aspect ratio in terms of y's per x rather than x's per y
+        aspect = 1.0 / aspect
+
+    # define a transform which takes us from old axes coordinates to
+    # new axes coordinates
+    shrinking_trans = mtransforms.BboxTransform(parents_bbox, pb1)
+
+    # transform each of the axes in parents using the new transform
+    for ax in parents:
+        new_posn = shrinking_trans.transform(ax.get_position())
+        new_posn = mtransforms.Bbox(new_posn)
+        ax.set_position(new_posn)
+        if parent_anchor is not False:
+            ax.set_anchor(parent_anchor)
+
+    cax = fig.add_axes(pbcb)
+    cax.set_aspect(aspect, anchor=anchor, adjustable='box')
+    return cax, kw
+
+
+@docstring.Substitution(make_axes_kw_doc)
+def make_axes_gridspec(parent, **kw):
+    '''
+    Resize and reposition a parent axes, and return a child axes
+    suitable for a colorbar. This function is similar to
+    make_axes. Prmary differences are
+
+     * *make_axes_gridspec* only handles the *orientation* keyword
+       and cannot handle the "location" keyword.
+
+     * *make_axes_gridspec* should only be used with a subplot parent.
+
+     * *make_axes* creates an instance of Axes. *make_axes_gridspec*
+        creates an instance of Subplot.
+
+     * *make_axes* updates the position of the
+        parent. *make_axes_gridspec* replaces the grid_spec attribute
+        of the parent with a new one.
+
+    While this function is meant to be compatible with *make_axes*,
+    there could be some minor differences.
+
+    Keyword arguments may include the following (with defaults):
+
+        *orientation*
+            'vertical' or 'horizontal'
+
+    %s
+
+    All but the first of these are stripped from the input kw set.
+
+    Returns (cax, kw), the child axes and the reduced kw dictionary to be
+    passed when creating the colorbar instance.
+    '''
+
+    orientation = kw.setdefault('orientation', 'vertical')
+    kw['ticklocation'] = 'auto'
+
+    fraction = kw.pop('fraction', 0.3)
+    shrink = kw.pop('shrink', 1.0)
+    aspect = kw.pop('aspect', 1)
+
+    x1 = 1.0 - fraction
+
+    # for shrinking
+    pad_s = (1. - shrink) * 0.5
+    wh_ratios = [pad_s, shrink, pad_s]
+
+    gs_from_subplotspec = gridspec.GridSpecFromSubplotSpec
+    if orientation == 'vertical':
+        pad = kw.pop('pad', 0.05)
+        wh_space = 2 * pad / (1 - pad)
+
+        gs = gs_from_subplotspec(1, 2,
+                                 subplot_spec=parent.get_subplotspec(),
+                                 wspace=wh_space,
+                                 width_ratios=[x1 - pad, fraction]
+                                 )
+
+        gs2 = gs_from_subplotspec(3, 1,
+                                  subplot_spec=gs[1],
+                                  hspace=0.,
+                                  height_ratios=wh_ratios,
+                                  )
+
+        anchor = (0.0, 0.5)
+        panchor = (1.0, 0.5)
+    else:
+        pad = kw.pop('pad', 0.15)
+        wh_space = 2 * pad / (1 - pad)
+
+        gs = gs_from_subplotspec(2, 1,
+                                 subplot_spec=parent.get_subplotspec(),
+                                 hspace=wh_space,
+                                 height_ratios=[x1 - pad, fraction]
+                                 )
+
+        gs2 = gs_from_subplotspec(1, 3,
+                                  subplot_spec=gs[1],
+                                  wspace=0.,
+                                  width_ratios=wh_ratios,
+                                  )
+
+        aspect = 1.0 / aspect
+        anchor = (0.5, 1.0)
+        panchor = (0.5, 0.0)
+
+    parent.set_subplotspec(gs[0])
+    parent.update_params()
+    parent.set_position(parent.figbox)
+    parent.set_anchor(panchor)
+
+    fig = parent.get_figure()
+    cax = fig.add_subplot(gs2[1])
+    cax.set_aspect(aspect, anchor=anchor, adjustable='box')
+    return cax, kw
+
+
+class ColorbarPatch(Colorbar):
+    """
+    A Colorbar which is created using :class:`~matplotlib.patches.Patch`
+    rather than the default :func:`~matplotlib.axes.pcolor`.
+
+    It uses a list of Patch instances instead of a
+    :class:`~matplotlib.collections.PatchCollection` because the
+    latter does not allow the hatch pattern to vary among the
+    members of the collection.
+    """
+    def __init__(self, ax, mappable, **kw):
+        # we do not want to override the behaviour of solids
+        # so add a new attribute which will be a list of the
+        # colored patches in the colorbar
+        self.solids_patches = []
+        Colorbar.__init__(self, ax, mappable, **kw)
+
+    def _add_solids(self, X, Y, C):
+        """
+        Draw the colors using :class:`~matplotlib.patches.Patch`;
+        optionally add separators.
+        """
+        # Save, set, and restore hold state to keep pcolor from
+        # clearing the axes. Ordinarily this will not be needed,
+        # since the axes object should already have hold set.
+        _hold = self.ax._hold
+        self.ax._hold = True
+
+        kw = {'alpha': self.alpha, }
+
+        n_segments = len(C)
+
+        # ensure there are sufficent hatches
+        hatches = self.mappable.hatches * n_segments
+
+        patches = []
+        for i in xrange(len(X) - 1):
+            val = C[i][0]
+            hatch = hatches[i]
+
+            xy = np.array([[X[i][0], Y[i][0]],
+                           [X[i][1], Y[i][0]],
+                           [X[i + 1][1], Y[i + 1][0]],
+                           [X[i + 1][0], Y[i + 1][1]]])
+
+            if self.orientation == 'horizontal':
+                # if horizontal swap the xs and ys
+                xy = xy[..., ::-1]
+
+            patch = mpatches.PathPatch(mpath.Path(xy),
+                                       facecolor=self.cmap(self.norm(val)),
+                                       hatch=hatch, linewidth=0,
+                                       antialiased=False, **kw)
+            self.ax.add_patch(patch)
+            patches.append(patch)
+
+        if self.solids_patches:
+            for solid in self.solids_patches:
+                solid.remove()
+
+        self.solids_patches = patches
+
+        if self.dividers is not None:
+            self.dividers.remove()
+            self.dividers = None
+
+        if self.drawedges:
+            self.dividers = collections.LineCollection(self._edges(X, Y),
+                    colors=(mpl.rcParams['axes.edgecolor'],),
+                    linewidths=(0.5 * mpl.rcParams['axes.linewidth'],))
+            self.ax.add_collection(self.dividers)
+
+        self.ax._hold = _hold
+
+
 def colorbar_factory(cax, mappable, **kwargs):
     """
     Creates a colorbar on the given axes for the given mappable.
@@ -1906,6 +1907,7 @@ def colorbar_factory(cax, mappable, **kwargs):
             and any([hatch is not None for hatch in mappable.hatches])):
         cb = ColorbarPatch(cax, mappable, **kwargs)
     else:
+        kwargs.pop('orientation', 'vertical')
         cb = Colorbar(cax, mappable, **kwargs)
 
     cid = mappable.callbacksSM.connect('changed', cb.on_mappable_changed)
