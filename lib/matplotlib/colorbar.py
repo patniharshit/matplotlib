@@ -967,7 +967,7 @@ class Colorsquare(ColorbarBase):
         self._process_values()
         X, Y = self._mesh()
         C = np.array(X * 256 * 256  + Y * 256, dtype='int64')
-        # C = self._values[:, np.newaxis]
+        #C = self._values[:, np.newaxis]
         self._config_axes(X, Y)
         if self.filled:
             self._add_solids(X, Y, C)
@@ -989,14 +989,16 @@ class Colorsquare(ColorbarBase):
         called whenever the tick locator and/or tick formatter changes.
         """
         ax = self.ax
-        yticks, yticklabels, offset_string = self._ticker(self.ylocator, self._boundaries[1], self.norm.norm2)
-        xticks, xticklabels, offset_string = self._ticker(self.xlocator, self._boundaries[0], self.norm.norm1)
+        yticks, yticklabels, yoffset_string = self._ticker(self.ylocator, self._boundaries[1], self.norm.norm2)
+        xticks, xticklabels, xoffset_string = self._ticker(self.xlocator, self._boundaries[0], self.norm.norm1)
+
         ax.yaxis.set_ticks(yticks)
         ax.set_yticklabels(yticklabels)
-        ax.yaxis.get_major_formatter().set_offset_string(offset_string)
+        ax.yaxis.get_major_formatter().set_offset_string(yoffset_string)
+
         ax.xaxis.set_ticks(xticks)
         ax.set_xticklabels(xticklabels)
-        ax.xaxis.get_major_formatter().set_offset_string(offset_string)
+        ax.xaxis.get_major_formatter().set_offset_string(xoffset_string)
 
     def set_ticks(self, xticks, yticks, update_ticks=True):
         if cbook.iterable(xticks):

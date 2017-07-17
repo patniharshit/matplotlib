@@ -5170,9 +5170,20 @@ or tuple of floats
         # is False.
 
         allmatch = kw.pop("allmatch", False)
+        norm = kw.pop("norm", None)
+        cmap = kw.pop("cmap", None)
 
         if len(args) == 1:
             C = np.asanyarray(args[0])
+            isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                        isinstance(cmap, mcolors.BivariateColormap))
+            if (C.ndim == 3 and isBivari):
+                if cmap is None:
+                    cmap = mcolors.BivariateColormap()
+                if norm is None:
+                    norm = mcolors.BivariateNorm()
+                C = norm(C)
+                C = cmap(C, bytes=True)
             numRows, numCols = C.shape
             if allmatch:
                 X, Y = np.meshgrid(np.arange(numCols), np.arange(numRows))
@@ -5184,6 +5195,15 @@ or tuple of floats
 
         if len(args) == 3:
             X, Y, C = [np.asanyarray(a) for a in args]
+            isBivari = (isinstance(norm, mcolors.BivariateNorm) or
+                        isinstance(cmap, mcolors.BivariateColormap))
+            if (C.ndim == 3 and isBivari):
+                if cmap is None:
+                    cmap = mcolors.BivariateColormap()
+                if norm is None:
+                    norm = mcolors.BivariateNorm()
+                C = norm(C)
+                C = cmap(C, bytes=True)
             numRows, numCols = C.shape
         else:
             raise TypeError(
@@ -5369,8 +5389,13 @@ or tuple of floats
         vmin = kwargs.pop('vmin', None)
         vmax = kwargs.pop('vmax', None)
 
-        X, Y, C = self._pcolorargs('pcolor', *args, allmatch=False)
+        kw = {'norm': norm, 'cmap': cmap, 'allmatch': False}
+        X, Y, C = self._pcolorargs('pcolor', *args, **kw)
         Ny, Nx = X.shape
+
+        if (isinstance(norm, mcolors.BivariateNorm) or
+                isinstance(cmap, mcolors.BivariateColormap)):
+            norm = mcolors.NoNorm()
 
         # unit conversion allows e.g. datetime objects as axis values
         self._process_unit_info(xdata=X, ydata=Y, kwargs=kwargs)
@@ -5437,9 +5462,13 @@ or tuple of floats
 
         collection.set_alpha(alpha)
         collection.set_array(C)
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            msg = "'norm' must be an instance of 'mcolors.Normalize'"
+
+        isNorm = isinstance(norm, (mcolors.Normalize, mcolors.BivariateNorm))
+        if norm is not None and not isNorm:
+            msg = "'norm' must be an instance of 'mcolors.Normalize' " \
+                  "or 'mcolors.BivariateNorm'"
             raise ValueError(msg)
+
         collection.set_cmap(cmap)
         collection.set_norm(norm)
         collection.set_clim(vmin, vmax)
@@ -5569,8 +5598,13 @@ or tuple of floats
 
         allmatch = (shading == 'gouraud')
 
-        X, Y, C = self._pcolorargs('pcolormesh', *args, allmatch=allmatch)
+        kw = {'norm': norm, 'cmap': cmap, 'allmatch': allmatch}
+        X, Y, C = self._pcolorargs('pcolormesh', *args, **kw)
         Ny, Nx = X.shape
+
+        if (isinstance(norm, mcolors.BivariateNorm) or
+                isinstance(cmap, mcolors.BivariateColormap)):
+            norm = mcolors.NoNorm()
 
         # unit conversion allows e.g. datetime objects as axis values
         self._process_unit_info(xdata=X, ydata=Y, kwargs=kwargs)
