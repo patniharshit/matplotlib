@@ -911,7 +911,8 @@ class Colorsquare(ColorbarBase):
                  spacing='uniform',  # uniform or proportional
                  xticks=None,
                  yticks=None,
-                 format=None,
+                 xformat=None,
+                 yformat=None,
                  drawedges=False,
                  filled=True,
                  extendfrac=None,
@@ -953,12 +954,21 @@ class Colorsquare(ColorbarBase):
             self.ylocator = ticker.FixedLocator(yticks, nbins=len(yticks))
         else:
             self.ylocator = yticks
-        if format is None:
-            self.formatter = ticker.ScalarFormatter()
-        elif isinstance(format, six.string_types):
-            self.formatter = ticker.FormatStrFormatter(format)
+
+        if xformat is None:
+            self.xformatter = ticker.ScalarFormatter()
+        elif isinstance(xformat, six.string_types):
+            self.xformatter = ticker.FormatStrFormatter(xformat)
         else:
-            self.formatter = format  # Assume it is a Formatter
+            self.xformatter = xformat  # Assume it is a Formatter
+
+        if yformat is None:
+            self.yformatter = ticker.ScalarFormatter()
+        elif isinstance(yformat, six.string_types):
+            self.yformatter = ticker.FormatStrFormatter(yformat)
+        else:
+            self.yformatter = yformat  # Assume it is a Formatter
+
         # The rest is in a method so we can recalculate when clim changes.
         self.config_axis()
         self.draw_all()
@@ -989,8 +999,8 @@ class Colorsquare(ColorbarBase):
         called whenever the tick locator and/or tick formatter changes.
         """
         ax = self.ax
-        yticks, yticklabels, yoffset_string = self._ticker(self.ylocator, self._boundaries[1], self.norm.norm2)
-        xticks, xticklabels, xoffset_string = self._ticker(self.xlocator, self._boundaries[0], self.norm.norm1)
+        yticks, yticklabels, yoffset_string = self._ticker(self.yformatter, self.ylocator, self._boundaries[1], self.norm.norm2)
+        xticks, xticklabels, xoffset_string = self._ticker(self.xformatter, self.xlocator, self._boundaries[0], self.norm.norm1)
 
         ax.yaxis.set_ticks(yticks)
         ax.set_yticklabels(yticklabels)
@@ -1098,12 +1108,11 @@ class Colorsquare(ColorbarBase):
     def add_lines(self, levels, colors, linewidths, erase=True):
         pass
 
-    def _ticker(self, locator, boundaries, norm):
+    def _ticker(self, formatter, locator, boundaries, norm):
         '''
         Return the sequence of ticks (colorbar data locations),
         ticklabels (strings), and the corresponding offset string.
         '''
-        formatter = self.formatter
         if locator is None:
             if boundaries is None:
                 if isinstance(norm, colors.NoNorm):
