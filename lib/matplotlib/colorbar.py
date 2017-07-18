@@ -1097,7 +1097,6 @@ class Colorsquare(ColorbarBase):
         self.ax._hold = True
         col = self.ax.pcolormesh(*args, **kw)
         self.ax._hold = _hold
-        #self.add_observer(col) # We should observe, not be observed...
 
         if self.solids is not None:
             self.solids.remove()

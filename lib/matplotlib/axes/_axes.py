@@ -5172,6 +5172,7 @@ or tuple of floats
         allmatch = kw.pop("allmatch", False)
         norm = kw.pop("norm", None)
         cmap = kw.pop("cmap", None)
+        alpha = kw.pop("alpha", 1)
 
         if len(args) == 1:
             C = np.asanyarray(args[0])
@@ -5183,7 +5184,7 @@ or tuple of floats
                 if norm is None:
                     norm = mcolors.BivariateNorm()
                 C = norm(C)
-                C = cmap(C, bytes=True)
+                C = cmap(C, alpha=alpha, bytes=True)
             numRows, numCols = C.shape
             if allmatch:
                 X, Y = np.meshgrid(np.arange(numCols), np.arange(numRows))
@@ -5598,7 +5599,7 @@ or tuple of floats
 
         allmatch = (shading == 'gouraud')
 
-        kw = {'norm': norm, 'cmap': cmap, 'allmatch': allmatch}
+        kw = {'norm': norm, 'cmap': cmap, 'alpha':alpha, 'allmatch': allmatch}
         X, Y, C = self._pcolorargs('pcolormesh', *args, **kw)
         Ny, Nx = X.shape
 
