@@ -967,7 +967,7 @@ class Colorsquare(ColorbarBase):
         self._process_values()
         X, Y = self._mesh()
         C = np.array(X * 256 * 256  + Y * 256, dtype='int64')
-        #C = self._values[:, np.newaxis]
+        # C = self._values
         self._config_axes(X, Y)
         if self.filled:
             self._add_solids(X, Y, C)
@@ -1022,7 +1022,7 @@ class Colorsquare(ColorbarBase):
         *update_ticks* method explicitly.
         """
         if (isinstance(self.xlocator, ticker.FixedLocator) and
-                isinstance(self.xlocator, ticker.FixedLocator)):
+                isinstance(self.ylocator, ticker.FixedLocator)):
             self.xformatter = ticker.FixedFormatter(xticklabels)
             self.yformatter = ticker.FixedFormatter(yticklabels)
             if update_ticks:
@@ -1128,10 +1128,14 @@ class Colorsquare(ColorbarBase):
                     else:
                         locator = ticker.AutoLocator()
             else:
-                b = self._boundaries[self._inside]
+                b = boundaries[self._inside]
                 locator = ticker.FixedLocator(b, nbins=10)
-        b = boundaries[self._inside]
-        intv = b[0], b[-1]
+
+        if isinstance(self.norm, colors.NoNorm) and self.boundaries is None:
+            intv = self._values[0], self._values[-1]
+        else:
+            b = boundaries[self._inside]
+            intv = b[0], b[-1]
         locator.create_dummy_axis(minpos=intv[0])
         formatter.create_dummy_axis(minpos=intv[0])
         locator.set_view_interval(*intv)
