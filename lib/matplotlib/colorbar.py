@@ -893,9 +893,8 @@ class ColorbarBase(cm.ScalarMappable):
 
     def remove(self):
         """
-        Remove this colorbar from the figure
+        Remove this colorsquare from the figure
         """
-
         fig = self.ax.figure
         fig.delaxes(self.ax)
 
@@ -943,8 +942,8 @@ class Colorsquare(ColorbarBase):
         self.outline = None
         self.patch = None
         self.dividers = None
-
         self.set_label(xlabel, ylabel)
+
         if cbook.iterable(xticks):
             self.xlocator = ticker.FixedLocator(xticks, nbins=len(xticks))
         else:
@@ -956,14 +955,26 @@ class Colorsquare(ColorbarBase):
             self.ylocator = yticks
 
         if xformat is None:
-            self.xformatter = ticker.ScalarFormatter()
+            if isinstance(self.norm.norm1, colors.LogNorm):
+                self.xformatter = ticker.LogFormatterSciNotation()
+            elif isinstance(self.norm.norm1, colors.SymLogNorm):
+                self.xformatter = ticker.LogFormatterSciNotation(
+                                        linthresh=self.norm.norm1.linthresh)
+            else:
+                self.xformatter = ticker.ScalarFormatter()
         elif isinstance(xformat, six.string_types):
             self.xformatter = ticker.FormatStrFormatter(xformat)
         else:
             self.xformatter = xformat  # Assume it is a Formatter
 
         if yformat is None:
-            self.yformatter = ticker.ScalarFormatter()
+            if isinstance(self.norm.norm2, colors.LogNorm):
+                self.yformatter = ticker.LogFormatterSciNotation()
+            elif isinstance(self.norm.norm2, colors.SymLogNorm):
+                self.yformatter = ticker.LogFormatterSciNotation(
+                                        linthresh=self.norm.norm2.linthresh)
+            else:
+                self.yformatter = ticker.ScalarFormatter()
         elif isinstance(yformat, six.string_types):
             self.yformatter = ticker.FormatStrFormatter(yformat)
         else:
@@ -1007,7 +1018,7 @@ class Colorsquare(ColorbarBase):
         ax.yaxis.get_major_formatter().set_offset_string(yoffset_string)
 
         ax.xaxis.set_ticks(xticks)
-        ax.set_xticklabels(xticklabels)
+        ax.set_xticklabels(xticklabels, rotation='vertical')
         ax.xaxis.get_major_formatter().set_offset_string(xoffset_string)
 
     def set_ticks(self, xticks, yticks, update_ticks=True):
