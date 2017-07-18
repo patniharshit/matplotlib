@@ -1114,7 +1114,7 @@ class Colorsquare(ColorbarBase):
         ticklabels (strings), and the corresponding offset string.
         '''
         if locator is None:
-            if boundaries is None:
+            if self.boundaries is None:
                 if isinstance(norm, colors.NoNorm):
                     nv = len(self._values)
                     base = 1 + int(nv / 10)
