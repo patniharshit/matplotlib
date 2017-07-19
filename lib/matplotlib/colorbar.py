@@ -1071,7 +1071,10 @@ class Colorsquare(ColorbarBase):
         '''
         Return the separator line segments; helper for _add_solids.
         '''
-        pass
+        N = X.shape[0]
+        # Using the non-array form of these line segments is much
+        # simpler than making them into arrays.
+        return [list(zip(X[i], Y[i])) for i in xrange(1, N - 1)] + [list(zip(Y[i], X[i])) for i in xrange(1, N - 1)]
 
     def _add_solids(self, X, Y, C):
         '''
@@ -1099,12 +1102,10 @@ class Colorsquare(ColorbarBase):
             self.dividers = None
         if self.drawedges:
             linewidths = (0.5 * mpl.rcParams['axes.linewidth'],)
-            """
             self.dividers = collections.LineCollection(self._edges(X, Y),
                                     colors=(mpl.rcParams['axes.edgecolor'],),
                                     linewidths=linewidths)
             self.ax.add_collection(self.dividers)
-            """
         elif len(self._y) >= self.n_rasterize:
             self.solids.set_rasterized(True)
 
@@ -1143,7 +1144,7 @@ class Colorsquare(ColorbarBase):
                 b = boundaries[self._inside]
                 locator = ticker.FixedLocator(b, nbins=10)
 
-        if isinstance(self.norm, colors.NoNorm) and self.boundaries is None:
+        if isinstance(norm, colors.NoNorm) and boundaries is None:
             intv = self._values[0], self._values[-1]
         else:
             b = boundaries[self._inside]
