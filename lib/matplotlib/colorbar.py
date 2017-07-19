@@ -987,14 +987,15 @@ class Colorsquare(ColorbarBase):
     def draw_all(self):
         self._process_values()
         X, Y = self._mesh()
-        C = np.array(X * 256 * 256  + Y * 256, dtype='int64')
+        C = np.array(X * 256 * 256 + Y * 256, dtype='int64')
         # C = self._values
-        self._config_axes(X, Y)
+        self.update_ticks()
         if self.filled:
             self._add_solids(X, Y, C)
 
     def config_axis(self):
         ax = self.ax
+        ax.set_navigate(False)
 
         ax.yaxis.set_label_position('right')
         ax.yaxis.set_ticks_position('right')
@@ -1051,14 +1052,6 @@ class Colorsquare(ColorbarBase):
         else:
             warnings.warn("set_ticks() must have been called.")
         self.stale = True
-
-    def _config_axes(self, X, Y):
-        '''
-        Make an axes patch and outline.
-        '''
-        ax = self.ax
-        ax.set_navigate(False)
-        self.update_ticks()
 
     def _set_label(self):
         self.ax.set_ylabel(self._ylabel, **self._labelkw)
