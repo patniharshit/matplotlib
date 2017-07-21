@@ -5204,7 +5204,7 @@ or tuple of floats
                 if norm is None:
                     norm = mcolors.BivariateNorm()
                 C = norm(C)
-                C = cmap(C, bytes=True)
+                # C = cmap(C, bytes=True)
             numRows, numCols = C.shape
         else:
             raise TypeError(
