@@ -992,7 +992,6 @@ class Colorsquare(ColorbarBase):
         self._xvalues, self._xboundaries = self._process_values(norm=self.norm.norm1)
         self._yvalues, self._yboundaries = self._process_values(norm=self.norm.norm2)
         X, Y = self._mesh()
-        # C = np.array(X * 256 * 256 + Y * 256, dtype='int64')
         CX, CY = np.meshgrid(self._xvalues, self._yvalues)
         self.update_ticks()
         if self.filled:
@@ -1016,16 +1015,16 @@ class Colorsquare(ColorbarBase):
         called whenever the tick locator and/or tick formatter changes.
         """
         ax = self.ax
-        yticks, yticklabels, yoffset_string = self._ticker(self.norm.norm2)
         xticks, xticklabels, xoffset_string = self._ticker(self.norm.norm1)
-
-        ax.yaxis.set_ticks(yticks)
-        ax.set_yticklabels(yticklabels)
-        ax.yaxis.get_major_formatter().set_offset_string(yoffset_string)
+        yticks, yticklabels, yoffset_string = self._ticker(self.norm.norm2)
 
         ax.xaxis.set_ticks(xticks)
         ax.set_xticklabels(xticklabels)
         ax.xaxis.get_major_formatter().set_offset_string(xoffset_string)
+
+        ax.yaxis.set_ticks(yticks)
+        ax.set_yticklabels(yticklabels)
+        ax.yaxis.get_major_formatter().set_offset_string(yoffset_string)
 
     def set_ticks(self, xticks, yticks, update_ticks=True):
         if cbook.iterable(xticks):
@@ -1042,20 +1041,27 @@ class Colorsquare(ColorbarBase):
             self.update_ticks()
         self.stale = True
 
-    def set_ticklabels(self, xticklabels, yticklabels, update_ticks=True):
+    def set_ticklabels(self, xticklabels=None, yticklabels=None,
+                       update_ticks=True):
         """
         set tick labels. Tick labels are updated immediately unless
         update_ticks is *False*. To manually update the ticks, call
         *update_ticks* method explicitly.
         """
-        if (isinstance(self.xlocator, ticker.FixedLocator) and
-                isinstance(self.ylocator, ticker.FixedLocator)):
-            self.xformatter = ticker.FixedFormatter(xticklabels)
-            self.yformatter = ticker.FixedFormatter(yticklabels)
+        if xticklabels is not None or yticklabels is not None:
+            if isinstance(self.xlocator, ticker.FixedLocator):
+                self.xformatter = ticker.FixedFormatter(xticklabels)
+
+            if isinstance(self.ylocator, ticker.FixedLocator):
+                self.yformatter = ticker.FixedFormatter(yticklabels)
+
             if update_ticks:
                 self.update_ticks()
-        else:
-            warnings.warn("set_ticks() must have been called.")
+
+            self.stale = True
+            return
+
+        warnings.warn("set_ticks() must have been called.")
         self.stale = True
 
     def _set_label(self):
@@ -1079,7 +1085,8 @@ class Colorsquare(ColorbarBase):
         N = X.shape[0]
         # Using the non-array form of these line segments is much
         # simpler than making them into arrays.
-        return [list(zip(X[i], Y[i])) for i in xrange(1, N - 1)] + [list(zip(Y[i], X[i])) for i in xrange(1, N - 1)]
+        return [list(zip(X[i], Y[i])) for i in xrange(1, N - 1)]
+        + [list(zip(Y[i], X[i])) for i in xrange(1, N - 1)]
 
     def _add_solids(self, X, Y, C):
         '''
@@ -1183,60 +1190,6 @@ class Colorsquare(ColorbarBase):
         ticklabels = [formatter(t, i) for i, t in enumerate(b)]
         offset_string = formatter.get_offset()
         return ticks, ticklabels, offset_string
-
-        """if locator is None:
-            if boundaries is None:
-                if isinstance(norm, colors.NoNorm):
-                    nv = len(_values)
-                    base = 1 + int(nv / 10)
-                    locator = ticker.IndexLocator(base=base, offset=0)
-                elif isinstance(norm, colors.BoundaryNorm):
-                    b = norm.boundaries
-                    locator = ticker.FixedLocator(b, nbins=10)
-                elif isinstance(norm, colors.LogNorm):
-                    locator = ticker.LogLocator(subs='all')
-                elif isinstance(norm, colors.SymLogNorm):
-                    # The subs setting here should be replaced
-                    # by logic in the locator.
-                    locator = ticker.SymmetricalLogLocator(
-                                      subs=np.arange(1, 10),
-                                      linthresh=self.norm.linthresh,
-                                      base=10)
-                else:
-                    if mpl.rcParams['_internal.classic_mode']:
-                        locator = ticker.MaxNLocator()
-                    else:
-                        # locator = ticker.AutoLocator()
-                        locator = ticker.MaxNLocator(nbins=5)
-            else:
-                b = boundaries[self._inside]
-                locator = ticker.FixedLocator(b, nbins=10)
-
-        if isinstance(norm, colors.NoNorm) and boundaries is None:
-            intv = values[0], values[-1]
-        else:
-            b = boundaries[self._inside]
-            intv = b[0], b[-1]
-        locator.create_dummy_axis(minpos=intv[0])
-        formatter.create_dummy_axis(minpos=intv[0])
-        locator.set_view_interval(*intv)
-        locator.set_data_interval(*intv)
-        formatter.set_view_interval(*intv)
-        formatter.set_data_interval(*intv)
-
-        b = np.array(locator())
-        if isinstance(locator, ticker.LogLocator):
-            eps = 1e-10
-            b = b[(b <= intv[1] * (1 + eps)) & (b >= intv[0] * (1 - eps))]
-        else:
-            eps = (intv[1] - intv[0]) * 1e-10
-            b = b[(b <= intv[1] + eps) & (b >= intv[0] - eps)]
-        ticks = self._locate(b, norm, boundaries)
-        formatter.set_locs(b)
-        ticklabels = [formatter(t, i) for i, t in enumerate(b)]
-        offset_string = formatter.get_offset()
-        return ticks, ticklabels, offset_string
-        """
 
     def _process_values(self, b=None, norm=None):
         '''
