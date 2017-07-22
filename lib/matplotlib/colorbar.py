@@ -907,8 +907,6 @@ class Colorsquare(ColorbarBase):
                  yvalues=None,
                  xboundaries=None,
                  yboundaries=None,
-                 ticklocation='auto',
-                 extend='neither',
                  spacing='uniform',  # uniform or proportional
                  xticks=None,
                  yticks=None,
@@ -916,8 +914,6 @@ class Colorsquare(ColorbarBase):
                  yformat=None,
                  drawedges=False,
                  filled=True,
-                 extendfrac=None,
-                 extendrect=False,
                  xlabel='',
                  ylabel='',
                  ):
@@ -934,13 +930,10 @@ class Colorsquare(ColorbarBase):
         self.yvalues = yvalues
         self.xboundaries = xboundaries
         self.yboundaries = yboundaries
-        self.extend = extend
-        self._inside = self._slice_dict[extend]
+        self._inside = self._slice_dict['neither']
         self.spacing = spacing
         self.drawedges = drawedges
         self.filled = filled
-        self.extendfrac = extendfrac
-        self.extendrect = extendrect
         self.solids = None
         self.lines = list()
         self.outline = None
@@ -1227,28 +1220,16 @@ class Colorsquare(ColorbarBase):
         # Neither boundaries nor values are specified;
         # make reasonable ones based on cmap and norm.
         if isinstance(norm, colors.NoNorm):
-            b = self._uniform_y(np.sqrt(self.cmap.N) + 1) * np.sqrt(self.cmap.N) - 0.5
+            b = np.linspace(0, 1, np.sqrt(self.cmap.N) + 1) * np.sqrt(self.cmap.N) - 0.5
             v = np.zeros((len(b) - 1,), dtype=np.int16)
             v[self._inside] = np.arange(np.sqrt(self.cmap.N), dtype=np.int16)
-            if self._extend_lower():
-                v[0] = -1
-            if self._extend_upper():
-                v[-1] = np.sqrt(self.cmap.N)
             return v, b
         elif isinstance(norm, colors.BoundaryNorm):
             b = list(norm.boundaries)
-            if self._extend_lower():
-                b = [b[0] - 1] + b
-            if self._extend_upper():
-                b = b + [b[-1] + 1]
             b = np.array(b)
             v = np.zeros((len(b) - 1,), dtype=float)
             bi = norm.boundaries
             v[self._inside] = 0.5 * (bi[:-1] + bi[1:])
-            if self._extend_lower():
-                v[0] = b[0] - 1
-            if self._extend_upper():
-                v[-1] = b[-1] + 1
             return v, b
         else:
             if not norm.scaled():
@@ -1258,29 +1239,9 @@ class Colorsquare(ColorbarBase):
             norm.vmin, norm.vmax = mtransforms.nonsingular(
                 norm.vmin, norm.vmax, expander=0.1)
 
-            b = norm.inverse(self._uniform_y(np.sqrt(self.cmap.N) + 1))
+            b = norm.inverse(np.linspace(0, 1, np.sqrt(self.cmap.N) + 1))
 
-            if isinstance(norm, colors.LogNorm):
-                # If using a lognorm, ensure extensions don't go negative
-                if self._extend_lower():
-                    b[0] = 0.9 * b[0]
-                if self._extend_upper():
-                    b[-1] = 1.1 * b[-1]
-            else:
-                if self._extend_lower():
-                    b[0] = b[0] - 1
-                if self._extend_upper():
-                    b[-1] = b[-1] + 1
         return self._process_values(b=b, norm=norm)
-
-    def _central_N(self, boundaries):
-        '''number of boundaries **before** extension of ends'''
-        nb = len(boundaries)
-        if self.extend == 'both':
-            nb -= 2
-        elif self.extend in ('min', 'max'):
-            nb -= 1
-        return nb
 
     def _mesh(self):
         '''
@@ -1290,15 +1251,11 @@ class Colorsquare(ColorbarBase):
         this function.
         '''
         if self.spacing == 'uniform':
-            x = self._uniform_y(self._central_N(self._xboundaries))
-            y = self._uniform_y(self._central_N(self._yboundaries))
+            x = np.linspace(0, 1, len(self._xboundaries))
+            y = np.linspace(0, 1, len(self._yboundaries))
         self._x = x
         self._y = y
         X, Y = np.meshgrid(x, y)
-        if self._extend_lower() and not self.extendrect:
-            X[0, :] = 0.5
-        if self._extend_upper() and not self.extendrect:
-            X[-1, :] = 0.5
         return X, Y
 
     def _locate(self, x, norm):
@@ -1375,6 +1332,11 @@ class Colorbar(Colorsquare):
 
             if isinstance(mappable, martist.Artist):
                 kw['alpha'] = mappable.get_alpha()
+
+            temp = kw.pop('ticklocation', None)
+            temp = kw.pop('extend', None)
+            temp = kw.pop('extendfrac', None)
+            temp = kw.pop('extendrec', None)
 
             Colorsquare.__init__(self, ax, **kw)
 
