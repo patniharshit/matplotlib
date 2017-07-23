@@ -1422,22 +1422,6 @@ class BivariateNorm:
         temp = temp.astype(int)
         return temp[0] + temp[1] * 256
 
-    def inverse(self, value):
-        """
-        Parameters
-        ----------
-        values : array-like
-            A list of two values to be inverted
-
-        Returns
-        -------
-        A list of two unnormalized values
-        """
-        value1 = (value % 256) / 256
-        value2 = (value - value % 256) / 256 * 256
-        return np.asarray([self.norm1.inverse(value1),
-                          self.norm2.inverse(value2)])
-
     def autoscale(self, A):
         """
         Set *vmin*, *vmax* to min, max of *A*.
