@@ -1845,12 +1845,12 @@ def colorbar_factory(cax, mappable, **kwargs):
     if (isinstance(mappable, contour.ContourSet)
             and any([hatch is not None for hatch in mappable.hatches])):
         cb = ColorbarPatch(cax, mappable, **kwargs)
-    else:
-        cb = Colorbar(cax, mappable, **kwargs)
-    """elif (isinstance(mappable.norm, colors.BivariateNorm)):
+    elif (isinstance(mappable.norm, colors.BivariateNorm)):
         kwargs.pop('orientation', None)
         kwargs.pop('ticklocation', None)
-        cb = Colorsquare(cax, mappable, **kwargs)"""
+        cb = Colorsquare(cax, mappable, **kwargs)
+    else:
+        cb = Colorbar(cax, mappable, **kwargs)
 
     cid = mappable.callbacksSM.connect('changed', cb.on_mappable_changed)
     mappable.colorbar = cb
