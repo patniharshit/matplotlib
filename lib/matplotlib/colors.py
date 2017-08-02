@@ -888,7 +888,6 @@ class Norms:
     Abstract Base Class to group `Normalize` and `BivariateNorm`
     """
     __metaclass__ = ABCMeta
-    pass
 
 
 class Normalize(Norms):
