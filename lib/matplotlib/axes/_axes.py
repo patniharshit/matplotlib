@@ -5119,11 +5119,6 @@ or tuple of floats
         of pixel (0, 0).
 
         """
-
-        temp = np.asarray(X)
-        if temp.ndim == 3 and isinstance(norm, mcolors.BivariateNorm):
-                    X = norm(temp)
-
         if not self._hold:
             self.cla()
 
